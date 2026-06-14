@@ -78,18 +78,18 @@ def build_html(sections: dict) -> str:
 def send_email(html: str) -> None:
     sender = os.environ["EMAIL_SENDER"]
     password = os.environ["EMAIL_PASSWORD"]
-    recipient = os.environ["EMAIL_RECIPIENT"]
+    recipients = [r.strip() for r in os.environ["EMAIL_RECIPIENT"].split(",")]
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = f"📰 Noticias del día — {datetime.now().strftime('%d/%m/%Y')}"
     msg["From"] = sender
-    msg["To"] = recipient
+    msg["To"] = ", ".join(recipients)
     msg.attach(MIMEText(html, "html"))
 
     context = ssl.create_default_context()
     with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
         server.login(sender, password)
-        server.sendmail(sender, recipient, msg.as_string())
+        server.sendmail(sender, recipients, msg.as_string())
     print("Correo enviado correctamente.")
 
 

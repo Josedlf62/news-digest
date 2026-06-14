@@ -4,6 +4,7 @@
 import smtplib
 import ssl
 import os
+import locale
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from datetime import datetime
@@ -12,20 +13,31 @@ import urllib.request
 
 FEEDS = {
     "🇨🇱 Nacional": [
-        ("Emol", "https://www.emol.com/rss/nacional.xml"),
-        ("La Tercera", "https://www.latercera.com/feed/"),
+        ("CNN Chile", "https://www.cnnchile.com/feed/"),
+        ("BioBio", "https://www.biobiochile.cl/lista/categorias/nacional/feed"),
     ],
     "🌍 Internacional": [
-        ("Emol", "https://www.emol.com/rss/internacional.xml"),
+        ("CNN Chile Internacional", "https://www.cnnchile.com/categoria/mundo/feed/"),
         ("Diario Financiero", "https://www.df.cl/feed/"),
     ],
     "⚽ Deportes": [
-        ("Emol Deportes", "https://www.emol.com/rss/deportes.xml"),
-        ("La Tercera Deportes", "https://www.latercera.com/el-deportivo/feed/"),
+        ("CNN Chile Deportes", "https://www.cnnchile.com/categoria/deportes/feed/"),
+        ("BioBio Deportes", "https://www.biobiochile.cl/lista/categorias/deportes/feed"),
     ],
 }
 
 MAX_ITEMS = 5
+
+DIAS = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
+MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio",
+         "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
+
+
+def fecha_en_espanol() -> str:
+    hoy = datetime.now()
+    dia_semana = DIAS[hoy.weekday()]
+    mes = MESES[hoy.month - 1]
+    return f"{dia_semana} {hoy.day} de {mes} de {hoy.year}"
 
 
 def fetch_feed(url: str) -> list[dict]:
@@ -45,7 +57,7 @@ def fetch_feed(url: str) -> list[dict]:
 
 
 def build_html(sections: dict) -> str:
-    date_str = datetime.now().strftime("%A %d de %B de %Y")
+    date_str = fecha_en_espanol()
     html = f"""
     <html><body style="font-family: Arial, sans-serif; max-width: 680px; margin: auto; color: #222;">
     <h1 style="background:#c0392b;color:white;padding:16px;border-radius:6px;">

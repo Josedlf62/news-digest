@@ -1,59 +1,57 @@
 #!/usr/bin/env python3
-"""Resumen diario de noticias por correo."""
+"""Resumen diario de noticias por correo via NewsAPI."""
 
 import smtplib
 import ssl
 import os
-import locale
+import json
+import urllib.request
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from datetime import datetime
-import xml.etree.ElementTree as ET
-import urllib.request
 
-FEEDS = {
-    "🇨🇱 Nacional": [
-        ("CNN Chile", "https://www.cnnchile.com/feed/"),
-        ("BioBio", "https://www.biobiochile.cl/lista/categorias/nacional/feed"),
-    ],
-    "🌍 Internacional": [
-        ("CNN Chile Internacional", "https://www.cnnchile.com/categoria/mundo/feed/"),
-        ("Diario Financiero", "https://www.df.cl/feed/"),
-    ],
-    "⚽ Deportes": [
-        ("CNN Chile Deportes", "https://www.cnnchile.com/categoria/deportes/feed/"),
-        ("BioBio Deportes", "https://www.biobiochile.cl/lista/categorias/deportes/feed"),
-    ],
-}
-
-MAX_ITEMS = 5
+NEWSAPI_KEY = os.environ["NEWSAPI_KEY"]
 
 DIAS = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
 MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio",
          "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
 
+MAX_ITEMS = 7
+
 
 def fecha_en_espanol() -> str:
     hoy = datetime.now()
-    dia_semana = DIAS[hoy.weekday()]
-    mes = MESES[hoy.month - 1]
-    return f"{dia_semana} {hoy.day} de {mes} de {hoy.year}"
+    return f"{DIAS[hoy.weekday()]} {hoy.day} de {MESES[hoy.month - 1]} de {hoy.year}"
 
 
-def fetch_feed(url: str) -> list[dict]:
+def fetch_news(query: str, language: str = "es") -> list[dict]:
+    url = (
+        f"https://newsapi.org/v2/everything"
+        f"?q={urllib.request.quote(query)}"
+        f"&language={language}"
+        f"&sortBy=publishedAt"
+        f"&pageSize={MAX_ITEMS}"
+        f"&apiKey={NEWSAPI_KEY}"
+    )
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        req = urllib.request.Request(url, headers={"User-Agent": "news-digest/1.0"})
         with urllib.request.urlopen(req, timeout=10) as resp:
-            tree = ET.parse(resp)
-        items = []
-        for item in tree.findall(".//item")[:MAX_ITEMS]:
-            title = item.findtext("title", "").strip()
-            link = item.findtext("link", "").strip()
-            if title and link:
-                items.append({"title": title, "link": link})
-        return items
-    except Exception:
+            data = json.loads(resp.read())
+        return [
+            {"title": a["title"], "link": a["url"]}
+            for a in data.get("articles", [])
+            if a.get("title") and a.get("url") and "[Removed]" not in a["title"]
+        ]
+    except Exception as e:
+        print(f"Error fetching '{query}': {e}")
         return []
+
+
+SECTIONS = {
+    "🇨🇱 Nacional": ("Chile noticias", "es"),
+    "🌍 Internacional": ("noticias internacionales", "es"),
+    "⚽ Deportes": ("deportes destacados", "es"),
+}
 
 
 def build_html(sections: dict) -> str:
@@ -97,11 +95,8 @@ def send_email(html: str) -> None:
 
 def main() -> None:
     sections = {}
-    for category, sources in FEEDS.items():
-        items = []
-        for _, url in sources:
-            items.extend(fetch_feed(url))
-        sections[category] = items[:MAX_ITEMS]
+    for category, (query, lang) in SECTIONS.items():
+        sections[category] = fetch_news(query, lang)
 
     html = build_html(sections)
     send_email(html)

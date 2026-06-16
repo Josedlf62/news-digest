@@ -8,7 +8,7 @@ import json
 import urllib.request
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from datetime import datetime
+from datetime import datetime, timedelta
 
 NEWSAPI_KEY = os.environ["NEWSAPI_KEY"]
 
@@ -25,10 +25,12 @@ def fecha_en_espanol() -> str:
 
 
 def fetch_news(query: str, language: str = "es") -> list[dict]:
+    desde = (datetime.now() - timedelta(hours=30)).strftime("%Y-%m-%dT%H:%M:%S")
     url = (
         f"https://newsapi.org/v2/everything"
         f"?q={urllib.request.quote(query)}"
         f"&language={language}"
+        f"&from={desde}"
         f"&sortBy=publishedAt"
         f"&pageSize={MAX_ITEMS}"
         f"&apiKey={NEWSAPI_KEY}"
@@ -48,9 +50,9 @@ def fetch_news(query: str, language: str = "es") -> list[dict]:
 
 
 SECTIONS = {
-    "🇨🇱 Nacional": ("Chile noticias", "es"),
-    "🌍 Internacional": ("noticias internacionales", "es"),
-    "⚽ Deportes": ("deportes destacados", "es"),
+    "🇨🇱 Nacional": ('Chile AND (gobierno OR economía OR política OR sociedad)', "es"),
+    "🌍 Internacional": ("(Estados Unidos OR Europa OR Asia OR guerra OR economía global)", "es"),
+    "⚽ Deportes": ("(fútbol OR tenis OR Copa OR campeonato OR selección chilena)", "es"),
 }
 
 

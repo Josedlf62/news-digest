@@ -150,7 +150,8 @@ def main() -> None:
     sections = {
         "🇨🇱 Nacional": fetch_newsapi('(Chile) AND (gobierno OR Boric OR Congreso OR ministro OR municipio OR crimen OR terremoto OR incendio OR salud OR educación) NOT deporte NOT fútbol NOT bolsa'),
         "🌍 Internacional": fetch_gnews("(guerra OR diplomacia OR elecciones OR economía mundial OR conflicto OR ONU OR Trump OR Europa OR Asia) NOT Chile NOT deporte"),
-        "⚽ Deportes": fetch_newsapi('(fútbol OR tenis OR NBA OR UFC OR Fórmula 1 OR Copa América OR Champions League OR selección chilena OR Colo-Colo OR Universidad de Chile) NOT política NOT economía'),
+        "⚽ Deportes Chile": fetch_newsapi('(Colo-Colo OR "Universidad de Chile" OR "Universidad Católica" OR "selección chilena" OR "La Roja" OR tenis chile OR "ATP Chile") NOT política NOT economía'),
+        "🌐 Deportes Internacional": fetch_newsapi('("Champions League" OR "Premier League" OR "La Liga" OR "Copa América" OR "Mundial" OR "Fórmula 1" OR "NBA" OR "Roland Garros" OR "Wimbledon") NOT Chile NOT política'),
         "📈 Mercados": fetch_finanzas(),
     }
     html = build_html(sections)

@@ -1,8 +1,6 @@
 name: Resumen diario de noticias
 
 on:
-  schedule:
-    - cron: "7 10 * * *"  # 7:07 AM Chile (UTC-3 invierno)
   workflow_dispatch:
 
 jobs:

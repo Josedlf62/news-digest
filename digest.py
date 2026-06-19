@@ -150,6 +150,7 @@ def main() -> None:
     sections = {
         "🇨🇱 Nacional": fetch_newsapi('Chile AND (gobierno OR economía OR política OR sociedad)'),
         "🌍 Internacional": fetch_gnews("noticias internacionales"),
+        "⚽ Deportes": fetch_gnews("deportes destacados fútbol"),
         "📈 Mercados": fetch_finanzas(),
     }
     html = build_html(sections)

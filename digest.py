@@ -119,37 +119,76 @@ def fetch_gnews_deportes() -> list[dict]:
         return []
 
 
+def fetch_ticker(ticker: str) -> dict | None:
+    """Obtiene precio y variación de un ticker de Yahoo Finance."""
+    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{urllib.request.quote(ticker)}?interval=1d&range=2d"
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read())
+        result = data["chart"]["result"][0]
+        closes = result["indicators"]["quote"][0]["close"]
+        closes = [c for c in closes if c is not None]
+        if len(closes) >= 2:
+            hoy = closes[-1]
+            ayer = closes[-2]
+            cambio = ((hoy - ayer) / ayer) * 100
+            return {"precio": hoy, "cambio": cambio, "ticker": ticker}
+    except Exception as e:
+        print(f"Error Yahoo Finance '{ticker}': {e}")
+    return None
+
+
+def formato_ticker(nombre: str, info: dict) -> dict:
+    flecha = "▲" if info["cambio"] >= 0 else "▼"
+    color = "#27ae60" if info["cambio"] >= 0 else "#c0392b"
+    return {
+        "title": f"{nombre}: {info['precio']:,.2f} <span style='color:{color}'>{flecha} {abs(info['cambio']):.2f}%</span>",
+        "link": f"https://finance.yahoo.com/quote/{info['ticker']}"
+    }
+
+
 def fetch_finanzas() -> list[dict]:
-    """Obtiene precios clave usando Yahoo Finance (sin API key)."""
-    tickers = {
-        "Dólar (USD/CLP)": "USDCLP=X",
+    """Obtiene indicadores clave y mayores alzas del IPSA."""
+    tickers_fijos = {
         "IPSA (Chile)": "^IPSA",
+        "Dólar (USD/CLP)": "USDCLP=X",
         "Cobre (USD/lb)": "HG=F",
         "S&P 500": "^GSPC",
         "Petróleo Brent": "BZ=F",
+        "LATAM Airlines": "LTM.SN",
+        "Besalco": "BESALCO.SN",
     }
+
     items = []
-    for nombre, ticker in tickers.items():
-        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{urllib.request.quote(ticker)}?interval=1d&range=2d"
-        try:
-            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                data = json.loads(resp.read())
-            result = data["chart"]["result"][0]
-            closes = result["indicators"]["quote"][0]["close"]
-            closes = [c for c in closes if c is not None]
-            if len(closes) >= 2:
-                hoy = closes[-1]
-                ayer = closes[-2]
-                cambio = ((hoy - ayer) / ayer) * 100
-                flecha = "▲" if cambio >= 0 else "▼"
-                color = "#27ae60" if cambio >= 0 else "#c0392b"
-                items.append({
-                    "title": f"{nombre}: {hoy:,.2f} <span style='color:{color}'>{flecha} {abs(cambio):.2f}%</span>",
-                    "link": f"https://finance.yahoo.com/quote/{ticker}"
-                })
-        except Exception as e:
-            print(f"Error Yahoo Finance '{ticker}': {e}")
+    for nombre, ticker in tickers_fijos.items():
+        info = fetch_ticker(ticker)
+        if info:
+            items.append(formato_ticker(nombre, info))
+
+    # Mayores alzas del IPSA
+    ipsa_tickers = {
+        "Banco de Chile": "CHILE.SN", "BCI": "BCI.SN", "Banco Santander": "BSAN.SN",
+        "CAP": "CAP.SN", "CCU": "CCU.SN", "Cencosud": "CENCOSUD.SN",
+        "CMPC": "CMPC.SN", "Colbún": "COLBUN.SN", "Copec": "COPEC.SN",
+        "Enel Chile": "ENELCHILE.SN", "Engie": "ECL.SN", "Falabella": "FALABELLA.SN",
+        "ILC": "ILC.SN", "Itaú": "ITAUCL.SN", "LATAM": "LTM.SN",
+        "Parque Arauco": "PARAUCO.SN", "Ripley": "RIPLEY.SN", "SQM-B": "SQM-B.SN",
+        "Vapores": "VAPORES.SN", "Besalco": "BESALCO.SN",
+    }
+
+    alzas = []
+    for nombre, ticker in ipsa_tickers.items():
+        info = fetch_ticker(ticker)
+        if info:
+            alzas.append((nombre, info))
+
+    alzas.sort(key=lambda x: x[1]["cambio"], reverse=True)
+    if alzas:
+        items.append({"title": "<br><b>📊 Mayores alzas del día:</b>", "link": ""})
+        for nombre, info in alzas[:2]:
+            items.append(formato_ticker(nombre, info))
+
     return items
 
 

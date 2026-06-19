@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Resumen diario de noticias por correo via NewsAPI."""
+"""Resumen diario de noticias por correo."""
 
 import smtplib
 import ssl
@@ -11,6 +11,7 @@ from email.mime.text import MIMEText
 from datetime import datetime, timedelta
 
 NEWSAPI_KEY = os.environ["NEWSAPI_KEY"]
+GNEWS_KEY = os.environ["GNEWS_KEY"]
 
 DIAS = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
 MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio",
@@ -24,12 +25,12 @@ def fecha_en_espanol() -> str:
     return f"{DIAS[hoy.weekday()]} {hoy.day} de {MESES[hoy.month - 1]} de {hoy.year}"
 
 
-def fetch_news(query: str, language: str = "es") -> list[dict]:
+def fetch_newsapi(query: str) -> list[dict]:
     desde = (datetime.now() - timedelta(hours=30)).strftime("%Y-%m-%dT%H:%M:%S")
     url = (
         f"https://newsapi.org/v2/everything"
         f"?q={urllib.request.quote(query)}"
-        f"&language={language}"
+        f"&language=es"
         f"&from={desde}"
         f"&sortBy=publishedAt"
         f"&pageSize={MAX_ITEMS}"
@@ -45,15 +46,65 @@ def fetch_news(query: str, language: str = "es") -> list[dict]:
             if a.get("title") and a.get("url") and "[Removed]" not in a["title"]
         ]
     except Exception as e:
-        print(f"Error fetching '{query}': {e}")
+        print(f"Error NewsAPI '{query}': {e}")
         return []
 
 
-SECTIONS = {
-    "🇨🇱 Nacional": ('Chile AND (gobierno OR economía OR política OR sociedad)', "es"),
-    "🌍 Internacional": ("(Estados Unidos OR Europa OR Asia OR guerra OR economía global)", "es"),
-    "⚽ Deportes": ("(fútbol OR tenis OR Copa OR campeonato OR selección chilena)", "es"),
-}
+def fetch_gnews(query: str) -> list[dict]:
+    url = (
+        f"https://gnews.io/api/v4/search"
+        f"?q={urllib.request.quote(query)}"
+        f"&lang=es"
+        f"&max={MAX_ITEMS}"
+        f"&sortby=publishedAt"
+        f"&token={GNEWS_KEY}"
+    )
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "news-digest/1.0"})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read())
+        return [
+            {"title": a["title"], "link": a["url"]}
+            for a in data.get("articles", [])
+            if a.get("title") and a.get("url")
+        ]
+    except Exception as e:
+        print(f"Error GNews '{query}': {e}")
+        return []
+
+
+def fetch_finanzas() -> list[dict]:
+    """Obtiene precios clave usando Yahoo Finance (sin API key)."""
+    tickers = {
+        "Dólar (USD/CLP)": "USDCLP=X",
+        "IPSA (Chile)": "^IPSA",
+        "Cobre (USD/lb)": "HG=F",
+        "S&P 500": "^GSPC",
+        "Petróleo Brent": "BZ=F",
+    }
+    items = []
+    for nombre, ticker in tickers.items():
+        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{urllib.request.quote(ticker)}?interval=1d&range=2d"
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = json.loads(resp.read())
+            result = data["chart"]["result"][0]
+            closes = result["indicators"]["quote"][0]["close"]
+            closes = [c for c in closes if c is not None]
+            if len(closes) >= 2:
+                hoy = closes[-1]
+                ayer = closes[-2]
+                cambio = ((hoy - ayer) / ayer) * 100
+                flecha = "▲" if cambio >= 0 else "▼"
+                color = "#27ae60" if cambio >= 0 else "#c0392b"
+                items.append({
+                    "title": f"{nombre}: {hoy:,.2f} <span style='color:{color}'>{flecha} {abs(cambio):.2f}%</span>",
+                    "link": f"https://finance.yahoo.com/quote/{ticker}"
+                })
+        except Exception as e:
+            print(f"Error Yahoo Finance '{ticker}': {e}")
+    return items
 
 
 def build_html(sections: dict) -> str:
@@ -72,7 +123,7 @@ def build_html(sections: dict) -> str:
                 html += f'<li><a href="{item["link"]}" style="color:#2980b9;text-decoration:none;">{item["title"]}</a></li>'
             html += "</ul>"
         else:
-            html += "<p style='color:#999;'>No se pudieron obtener noticias.</p>"
+            html += "<p style='color:#999;'>No se pudieron obtener datos.</p>"
     html += "</body></html>"
     return html
 
@@ -96,10 +147,11 @@ def send_email(html: str) -> None:
 
 
 def main() -> None:
-    sections = {}
-    for category, (query, lang) in SECTIONS.items():
-        sections[category] = fetch_news(query, lang)
-
+    sections = {
+        "🇨🇱 Nacional": fetch_newsapi('Chile AND (gobierno OR economía OR política OR sociedad)'),
+        "🌍 Internacional": fetch_gnews("noticias internacionales"),
+        "📈 Mercados": fetch_finanzas(),
+    }
     html = build_html(sections)
     send_email(html)
 

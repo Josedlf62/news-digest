@@ -17,4 +17,5 @@ jobs:
           EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
           EMAIL_RECIPIENT: ${{ secrets.EMAIL_RECIPIENT }}
           NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
+          GNEWS_KEY: ${{ secrets.GNEWS_KEY }}
         run: python digest.py

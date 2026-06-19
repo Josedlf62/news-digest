@@ -50,6 +50,29 @@ def fetch_newsapi(query: str) -> list[dict]:
         return []
 
 
+def fetch_newsapi_deportes() -> list[dict]:
+    """Usa el endpoint de top headlines con categoría sports para mayor precisión."""
+    url = (
+        f"https://newsapi.org/v2/top-headlines"
+        f"?category=sports"
+        f"&language=es"
+        f"&pageSize={MAX_ITEMS}"
+        f"&apiKey={NEWSAPI_KEY}"
+    )
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "news-digest/1.0"})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read())
+        return [
+            {"title": a["title"], "link": a["url"]}
+            for a in data.get("articles", [])
+            if a.get("title") and a.get("url") and "[Removed]" not in a["title"]
+        ]
+    except Exception as e:
+        print(f"Error NewsAPI deportes: {e}")
+        return []
+
+
 def fetch_gnews(query: str) -> list[dict]:
     url = (
         f"https://gnews.io/api/v4/search"
@@ -150,8 +173,7 @@ def main() -> None:
     sections = {
         "🇨🇱 Nacional": fetch_newsapi('(Chile) AND (gobierno OR Boric OR Congreso OR ministro OR municipio OR crimen OR terremoto OR incendio OR salud OR educación) NOT deporte NOT fútbol NOT bolsa'),
         "🌍 Internacional": fetch_gnews("(guerra OR diplomacia OR elecciones OR economía mundial OR conflicto OR ONU OR Trump OR Europa OR Asia) NOT Chile NOT deporte"),
-        "⚽ Deportes Chile": fetch_newsapi('(Colo-Colo OR "Universidad de Chile" OR "Universidad Católica" OR "selección chilena" OR "La Roja" OR tenis chile OR "ATP Chile") NOT política NOT economía'),
-        "🌐 Deportes Internacional": fetch_newsapi('("Champions League" OR "Premier League" OR "La Liga" OR "Copa América" OR "Mundial" OR "Fórmula 1" OR "NBA" OR "Roland Garros" OR "Wimbledon") NOT Chile NOT política'),
+        "⚽ Deportes": fetch_newsapi_deportes(),
         "📈 Mercados": fetch_finanzas(),
     }
     html = build_html(sections)

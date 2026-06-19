@@ -96,6 +96,29 @@ def fetch_gnews(query: str) -> list[dict]:
         return []
 
 
+def fetch_gnews_deportes() -> list[dict]:
+    """Usa el endpoint de top headlines de GNews con categoría sports."""
+    url = (
+        f"https://gnews.io/api/v4/top-headlines"
+        f"?category=sports"
+        f"&lang=es"
+        f"&max={MAX_ITEMS}"
+        f"&token={GNEWS_KEY}"
+    )
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "news-digest/1.0"})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read())
+        return [
+            {"title": a["title"], "link": a["url"]}
+            for a in data.get("articles", [])
+            if a.get("title") and a.get("url")
+        ]
+    except Exception as e:
+        print(f"Error GNews deportes: {e}")
+        return []
+
+
 def fetch_finanzas() -> list[dict]:
     """Obtiene precios clave usando Yahoo Finance (sin API key)."""
     tickers = {
@@ -173,7 +196,7 @@ def main() -> None:
     sections = {
         "🇨🇱 Nacional": fetch_newsapi('(Chile) AND (gobierno OR Boric OR Congreso OR ministro OR municipio OR crimen OR terremoto OR incendio OR salud OR educación) NOT deporte NOT fútbol NOT bolsa'),
         "🌍 Internacional": fetch_gnews("(guerra OR diplomacia OR elecciones OR economía mundial OR conflicto OR ONU OR Trump OR Europa OR Asia) NOT Chile NOT deporte"),
-        "⚽ Deportes": fetch_newsapi_deportes(),
+        "⚽ Deportes": fetch_gnews_deportes(),
         "📈 Mercados": fetch_finanzas(),
     }
     html = build_html(sections)

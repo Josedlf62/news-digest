@@ -121,7 +121,7 @@ def fetch_gnews_deportes() -> list[dict]:
 
 def fetch_ticker(ticker: str) -> dict | None:
     """Obtiene precio y variación de un ticker de Yahoo Finance."""
-    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{urllib.request.quote(ticker)}?interval=1d&range=2d"
+    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{urllib.request.quote(ticker)}?interval=1d&range=5d"
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         with urllib.request.urlopen(req, timeout=10) as resp:
@@ -185,7 +185,7 @@ def fetch_finanzas() -> list[dict]:
 
     alzas.sort(key=lambda x: x[1]["cambio"], reverse=True)
     if alzas:
-        items.append({"title": "<br><b>📊 Mayores alzas del día:</b>", "link": ""})
+        items.append({"title": "<b>📊 Mayores alzas del día:</b>", "link": "", "separator": True})
         for nombre, info in alzas[:2]:
             items.append(formato_ticker(nombre, info))
 

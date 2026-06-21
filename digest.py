@@ -39,17 +39,32 @@ def _palabras_clave(titulo: str) -> set[str]:
     return palabras
 
 
+def _nombres_propios(titulo: str) -> set[str]:
+    """Extrae palabras que empiezan con mayúscula (nombres propios)."""
+    nombres = set()
+    for p in titulo.split():
+        limpia = "".join(c for c in p if c.isalnum())
+        if limpia and len(limpia) > 2 and limpia[0].isupper() and limpia.lower() not in STOPWORDS:
+            nombres.add(limpia.lower())
+    return nombres
+
+
 def _es_duplicado(titulo: str, anteriores: list[str]) -> bool:
     palabras = _palabras_clave(titulo)
+    nombres = _nombres_propios(titulo)
     if not palabras:
         return False
     for prev in anteriores:
         prev_palabras = _palabras_clave(prev)
+        prev_nombres = _nombres_propios(prev)
         if not prev_palabras:
             continue
+        # Si comparten 2+ nombres propios, es duplicado
+        if len(nombres & prev_nombres) >= 2:
+            return True
         comunes = palabras & prev_palabras
         ratio = len(comunes) / min(len(palabras), len(prev_palabras))
-        if ratio >= 0.5:
+        if ratio >= 0.35:
             return True
     return False
 

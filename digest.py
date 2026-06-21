@@ -25,6 +25,35 @@ def fecha_en_espanol() -> str:
     return f"{DIAS[hoy.weekday()]} {hoy.day} de {MESES[hoy.month - 1]} de {hoy.year}"
 
 
+STOPWORDS = {"de", "la", "el", "en", "un", "una", "los", "las", "y", "a", "que",
+             "del", "por", "con", "al", "se", "su", "es", "lo", "más", "tras",
+             "para", "como", "fue", "ha", "ser", "ya", "no", "son", "sin", "sus"}
+
+
+def _palabras_clave(titulo: str) -> set[str]:
+    palabras = set()
+    for p in titulo.lower().split():
+        limpia = "".join(c for c in p if c.isalnum())
+        if limpia and len(limpia) > 2 and limpia not in STOPWORDS:
+            palabras.add(limpia)
+    return palabras
+
+
+def _es_duplicado(titulo: str, anteriores: list[str]) -> bool:
+    palabras = _palabras_clave(titulo)
+    if not palabras:
+        return False
+    for prev in anteriores:
+        prev_palabras = _palabras_clave(prev)
+        if not prev_palabras:
+            continue
+        comunes = palabras & prev_palabras
+        ratio = len(comunes) / min(len(palabras), len(prev_palabras))
+        if ratio >= 0.5:
+            return True
+    return False
+
+
 def fetch_newsapi(query: str) -> list[dict]:
     desde = (datetime.now() - timedelta(hours=30)).strftime("%Y-%m-%dT%H:%M:%S")
     url = (
@@ -41,18 +70,17 @@ def fetch_newsapi(query: str) -> list[dict]:
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read())
         items = []
-        seen = set()
+        seen_titles = []
         for a in data.get("articles", []):
             title = a.get("title", "").strip()
             if not title or not a.get("url") or "[Removed]" in title:
                 continue
-            # Evitar duplicados: comparar primeras 40 letras en minúsculas
-            key = title[:40].lower()
-            if key not in seen:
-                seen.add(key)
-                items.append({"title": title, "link": a["url"]})
-                if len(items) >= MAX_ITEMS:
-                    break
+            if _es_duplicado(title, seen_titles):
+                continue
+            seen_titles.append(title)
+            items.append({"title": title, "link": a["url"]})
+            if len(items) >= MAX_ITEMS:
+                break
         return items
     except Exception as e:
         print(f"Error NewsAPI '{query}': {e}")

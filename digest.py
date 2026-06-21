@@ -121,7 +121,7 @@ def fetch_gnews_deportes() -> list[dict]:
 
 def fetch_ticker(ticker: str) -> dict | None:
     """Obtiene precio y variación de un ticker de Yahoo Finance."""
-    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{urllib.request.quote(ticker)}?interval=1d&range=5d"
+    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{urllib.request.quote(ticker)}?interval=1d&range=10d"
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         with urllib.request.urlopen(req, timeout=10) as resp:
@@ -205,7 +205,12 @@ def build_html(sections: dict) -> str:
         if items:
             html += "<ul style='line-height:2;'>"
             for item in items:
-                html += f'<li><a href="{item["link"]}" style="color:#2980b9;text-decoration:none;">{item["title"]}</a></li>'
+                if item.get("separator"):
+                    html += f'</ul><p style="margin-top:12px;">{item["title"]}</p><ul style="line-height:2;">'
+                elif item["link"]:
+                    html += f'<li><a href="{item["link"]}" style="color:#2980b9;text-decoration:none;">{item["title"]}</a></li>'
+                else:
+                    html += f'<li>{item["title"]}</li>'
             html += "</ul>"
         else:
             html += "<p style='color:#999;'>No se pudieron obtener datos.</p>"

@@ -33,18 +33,27 @@ def fetch_newsapi(query: str) -> list[dict]:
         f"&language=es"
         f"&from={desde}"
         f"&sortBy=publishedAt"
-        f"&pageSize={MAX_ITEMS}"
+        f"&pageSize=20"
         f"&apiKey={NEWSAPI_KEY}"
     )
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "news-digest/1.0"})
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read())
-        return [
-            {"title": a["title"], "link": a["url"]}
-            for a in data.get("articles", [])
-            if a.get("title") and a.get("url") and "[Removed]" not in a["title"]
-        ]
+        items = []
+        seen = set()
+        for a in data.get("articles", []):
+            title = a.get("title", "").strip()
+            if not title or not a.get("url") or "[Removed]" in title:
+                continue
+            # Evitar duplicados: comparar primeras 40 letras en minúsculas
+            key = title[:40].lower()
+            if key not in seen:
+                seen.add(key)
+                items.append({"title": title, "link": a["url"]})
+                if len(items) >= MAX_ITEMS:
+                    break
+        return items
     except Exception as e:
         print(f"Error NewsAPI '{query}': {e}")
         return []
@@ -127,6 +136,7 @@ def fetch_ticker(ticker: str) -> dict | None:
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read())
         result = data["chart"]["result"][0]
+        meta = result["meta"]
         closes = result["indicators"]["quote"][0]["close"]
         closes = [c for c in closes if c is not None]
         if len(closes) >= 2:
@@ -134,6 +144,12 @@ def fetch_ticker(ticker: str) -> dict | None:
             ayer = closes[-2]
             cambio = ((hoy - ayer) / ayer) * 100
             return {"precio": hoy, "cambio": cambio, "ticker": ticker}
+        # Respaldo: usar metadata cuando no hay suficientes cierres
+        precio = meta.get("regularMarketPrice")
+        prev = meta.get("chartPreviousClose") or meta.get("previousClose")
+        if precio and prev and prev > 0:
+            cambio = ((precio - prev) / prev) * 100
+            return {"precio": precio, "cambio": cambio, "ticker": ticker}
     except Exception as e:
         print(f"Error Yahoo Finance '{ticker}': {e}")
     return None

@@ -130,7 +130,7 @@ def fetch_gnews(query: str) -> list[dict]:
         f"https://gnews.io/api/v4/search"
         f"?q={urllib.request.quote(query)}"
         f"&lang=es"
-        f"&max={MAX_ITEMS}"
+        f"&max=15"
         f"&sortby=publishedAt"
         f"&token={GNEWS_KEY}"
     )
@@ -138,11 +138,19 @@ def fetch_gnews(query: str) -> list[dict]:
         req = urllib.request.Request(url, headers={"User-Agent": "news-digest/1.0"})
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read())
-        return [
-            {"title": a["title"], "link": a["url"]}
-            for a in data.get("articles", [])
-            if a.get("title") and a.get("url")
-        ]
+        items = []
+        seen_titles = []
+        for a in data.get("articles", []):
+            title = a.get("title", "").strip()
+            if not title or not a.get("url"):
+                continue
+            if _es_duplicado(title, seen_titles):
+                continue
+            seen_titles.append(title)
+            items.append({"title": title, "link": a["url"]})
+            if len(items) >= MAX_ITEMS:
+                break
+        return items
     except Exception as e:
         print(f"Error GNews '{query}': {e}")
         return []
@@ -154,18 +162,26 @@ def fetch_gnews_deportes() -> list[dict]:
         f"https://gnews.io/api/v4/top-headlines"
         f"?category=sports"
         f"&lang=es"
-        f"&max={MAX_ITEMS}"
+        f"&max=15"
         f"&token={GNEWS_KEY}"
     )
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "news-digest/1.0"})
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read())
-        return [
-            {"title": a["title"], "link": a["url"]}
-            for a in data.get("articles", [])
-            if a.get("title") and a.get("url")
-        ]
+        items = []
+        seen_titles = []
+        for a in data.get("articles", []):
+            title = a.get("title", "").strip()
+            if not title or not a.get("url"):
+                continue
+            if _es_duplicado(title, seen_titles):
+                continue
+            seen_titles.append(title)
+            items.append({"title": title, "link": a["url"]})
+            if len(items) >= MAX_ITEMS:
+                break
+        return items
     except Exception as e:
         print(f"Error GNews deportes: {e}")
         return []
